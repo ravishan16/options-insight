@@ -21,7 +21,7 @@ class FinnhubAPI {
                     const status = response.status;
                     // Retry on rate limits and transient server errors
                     if ((status === 429 || (status >= 500 && status < 600)) && attempt < retries) {
-                        const delay = Math.round(baseDelayMs * Math.pow(2, attempt) + Math.random() * 100);
+                        const delay = calculateBackoffDelay(baseDelayMs, attempt);
                         await new Promise(r => setTimeout(r, delay));
                         continue;
                     }
@@ -37,7 +37,7 @@ class FinnhubAPI {
                 lastError = err;
                 // Network error: retry
                 if (attempt < retries) {
-                    const delay = Math.round(baseDelayMs * Math.pow(2, attempt) + Math.random() * 100);
+                    const delay = calculateBackoffDelay(baseDelayMs, attempt);
                     await new Promise(r => setTimeout(r, delay));
                     continue;
                 }
@@ -45,7 +45,6 @@ class FinnhubAPI {
         }
         throw lastError || new Error('Finnhub API request failed');
     }
-
     async getEarningsCalendar(fromDate, toDate) {
         const data = await this.makeRequest(`/calendar/earnings?from=${fromDate}&to=${toDate}`);
         return data.earningsCalendar || [];
@@ -62,6 +61,13 @@ class FinnhubAPI {
     async getBasicFinancials(symbol) {
         return this.makeRequest(`/stock/metric?symbol=${symbol}&metric=all`);
     }
+}
+
+/**
+ * Calculate exponential backoff delay with random jitter
+ */
+function calculateBackoffDelay(baseDelayMs, attempt) {
+    return Math.round(baseDelayMs * Math.pow(2, attempt) + Math.random() * 100);
 }
 
 /**
@@ -302,37 +308,56 @@ export async function getMarketContext(finnhubApiKey) {
  * Prioritizes larger companies with optimal timing and better market positioning
  */
 function calculatePrescreenScore(event, daysToEarnings) {
+    const SCORES = {
+        REVENUE: {
+            MEGA: 10,      // $10B+ revenue (mega caps like AAPL, MSFT)
+            LARGE: 7,      // $1B+ revenue (large caps)
+            MID: 5,        // $100M+ revenue (mid caps)
+            SMALL: 3,      // Smaller companies
+            NEUTRAL: 5     // No revenue data = neutral (don't penalize)
+        },
+        TIMING: {
+            OPTIMAL: 8,    // 7-21 days: enough time for setup, not too much theta decay
+            ACCEPTABLE: 5, // 3-30 days: acceptable timing
+            POOR: 2        // <3d or >30d: too close or too far
+        },
+        SESSION: {
+            AMC: 2,        // After market close: better for overnight positioning
+            BMO: 1         // Before market open: still good
+        }
+    };
+
     let score = 0;
 
     // Revenue size scoring (proxy for market cap/liquidity/options volume)
     if (event.revenueEstimate) {
         if (event.revenueEstimate > 10_000_000_000) {
-            score += 10; // $10B+ revenue (mega caps like AAPL, MSFT)
+            score += SCORES.REVENUE.MEGA;
         } else if (event.revenueEstimate > 1_000_000_000) {
-            score += 7;  // $1B+ revenue (large caps)
+            score += SCORES.REVENUE.LARGE;
         } else if (event.revenueEstimate > 100_000_000) {
-            score += 5;  // $100M+ revenue (mid caps)
+            score += SCORES.REVENUE.MID;
         } else {
-            score += 3;  // Smaller companies
+            score += SCORES.REVENUE.SMALL;
         }
     } else {
-        score += 5; // No revenue data = neutral (don't penalize)
+        score += SCORES.REVENUE.NEUTRAL;
     }
 
     // Timing preference (7-21 days is sweet spot for options strategies)
     if (daysToEarnings >= 7 && daysToEarnings <= 21) {
-        score += 8; // Optimal timing - enough time for setup, not too much theta decay
+        score += SCORES.TIMING.OPTIMAL;
     } else if (daysToEarnings >= 3 && daysToEarnings <= 30) {
-        score += 5; // Acceptable timing
+        score += SCORES.TIMING.ACCEPTABLE;
     } else {
-        score += 2; // Too close (<3d) or too far (>30d)
+        score += SCORES.TIMING.POOR;
     }
 
     // Market session preference (after-hours typically better for options positioning)
     if (event.hour === "amc") {
-        score += 2; // After market close - better for overnight positioning
+        score += SCORES.SESSION.AMC;
     } else if (event.hour === "bmo") {
-        score += 1; // Before market open - still good
+        score += SCORES.SESSION.BMO;
     }
     // No penalty for missing hour data
 

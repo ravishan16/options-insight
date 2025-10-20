@@ -186,7 +186,7 @@ function parseBatchResponse(rawBatchResponse, opportunities) {
     // Split response by stock symbols
     opportunities.forEach(opp => {
         try {
-            const symbolRegex = new RegExp(`===\\s*${opp.symbol}\\s*===([\\s\\S]*?)(?===\\s*[A-Z]+\\s*===|$)`, 'i');
+            const symbolRegex = new RegExp(`===\\s*${opp.symbol}\\s*===([\\s\\S]*?)(?===\\s*[A-Z.-]+\\s*===|$)`, 'i');
             const symbolMatch = rawBatchResponse.match(symbolRegex);
 
             if (symbolMatch) {
