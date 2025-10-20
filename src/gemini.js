@@ -25,25 +25,35 @@ export async function generateTradingIdeas(apiKey, opportunities, marketContext)
 
     console.log(`Generating AI analysis for ${opportunities.length} opportunities...`);
 
-    let content = [];
-    for (const opp of opportunities) {
-        try {
-            const analysis = await generateSingleAnalysis(model, opp, marketContext);
-            if (analysis) {
-                content.push({
-                    opportunity: opp,
-                    analysis: analysis,
-                    timestamp: new Date().toISOString()
-                });
-            }
-        } catch (error) {
-            console.error(`Error generating analysis for ${opp.symbol}:`, error);
-            // Continue with other opportunities even if one fails
-        }
-    }
+    try {
+        // Use batch analysis for better performance (single API call)
+        const batchAnalysis = await generateBatchAnalysis(model, opportunities, marketContext);
+        console.log(`Successfully generated ${batchAnalysis.length} analyses`);
+        return batchAnalysis;
+    } catch (error) {
+        console.error('Batch analysis failed, falling back to individual analysis:', error);
 
-    console.log(`Successfully generated ${content.length} analyses`);
-    return content;
+        // Fallback to individual analysis if batch fails
+        let content = [];
+        for (const opp of opportunities) {
+            try {
+                const analysis = await generateSingleAnalysis(model, opp, marketContext);
+                if (analysis) {
+                    content.push({
+                        opportunity: opp,
+                        analysis: analysis,
+                        timestamp: new Date().toISOString()
+                    });
+                }
+            } catch (error) {
+                console.error(`Error generating analysis for ${opp.symbol}:`, error);
+                // Continue with other opportunities even if one fails
+            }
+        }
+
+        console.log(`Successfully generated ${content.length} analyses (fallback mode)`);
+        return content;
+    }
 }
 
 /**
@@ -100,6 +110,102 @@ RESPOND IN EXACTLY THIS FORMAT (NO EXTRA TEXT):
 BE CONCISE. NO FLUFF.`;
 
     return prompt;
+}
+
+/**
+ * Generate batch analysis for multiple opportunities in a single API call
+ * This reduces API calls from N separate calls to 1 batch call, significantly improving performance
+ */
+async function generateBatchAnalysis(model, opportunities, marketContext) {
+    const marketRegimeDescription = getMarketRegimeDescription(marketContext);
+
+    // Create batch prompt with all opportunities
+    let batchPrompt = `QUANTITATIVE ANALYST: Analyze these ${opportunities.length} earnings opportunities. KEEP RESPONSES CONCISE.
+
+MARKET CONTEXT: VIX: ${marketContext?.vix?.toFixed(1) || 'N/A'} (${marketContext?.marketRegime || 'Unknown'})
+${marketRegimeDescription}
+
+`;
+
+    // Add each opportunity to the batch prompt
+    opportunities.forEach((opp, index) => {
+        const vol = opp.volatilityData;
+        batchPrompt += `
+--- STOCK ${index + 1}: ${opp.symbol} ---
+Earnings: ${opp.date} (${opp.daysToEarnings}d)
+Price: $${vol?.currentPrice?.toFixed(2) || 'N/A'} | Expected Move: ${vol?.expectedMove ? `${((vol.expectedMove/vol.currentPrice)*100).toFixed(1)}%` : 'N/A'}
+IV: ${vol?.impliedVolatility?.toFixed(1) || 'N/A'}% | HV: ${vol?.historicalVolatility?.toFixed(1) || 'N/A'}% | RSI: ${vol?.technicalIndicators?.rsi?.toFixed(1) || 'N/A'}
+Quality: ${opp.qualityScore}/100
+
+`;
+    });
+
+    batchPrompt += `
+RESPOND WITH EXACTLY ${opportunities.length} ANALYSES IN THIS FORMAT (one per stock):
+
+=== ${opportunities[0].symbol} ===
+**SENTIMENT SCORE:** [1-10]
+**RECOMMENDATION:** [STRONGLY CONSIDER or NEUTRAL or STAY AWAY]
+**REASONING:** [2-3 sentences max]
+**STRATEGIES:**
+1. **[Strategy Name]** - POP: [%], Risk: $[amount], Entry: [timing]
+2. **[Strategy Name]** - POP: [%], Risk: $[amount], Entry: [timing]
+**KEY RISKS:** [1-2 bullets max]
+
+${opportunities.slice(1).map(opp => `=== ${opp.symbol} ===
+**SENTIMENT SCORE:** [1-10]
+**RECOMMENDATION:** [STRONGLY CONSIDER or NEUTRAL or STAY AWAY]
+**REASONING:** [2-3 sentences max]
+**STRATEGIES:**
+1. **[Strategy Name]** - POP: [%], Risk: $[amount], Entry: [timing]
+2. **[Strategy Name]** - POP: [%], Risk: $[amount], Entry: [timing]
+**KEY RISKS:** [1-2 bullets max]`).join('\n\n')}
+
+BE CONCISE. NO EXTRA TEXT.`;
+
+    try {
+        const result = await model.generateContent(batchPrompt);
+        const response = await result.response;
+        const rawBatchResponse = response.text();
+
+        // Parse the batch response into individual analyses
+        const analyses = parseBatchResponse(rawBatchResponse, opportunities);
+        return analyses;
+    } catch (error) {
+        console.error('Error in batch AI analysis:', error);
+        throw error; // Re-throw to trigger fallback
+    }
+}
+
+/**
+ * Parse batch response into individual analysis objects
+ */
+function parseBatchResponse(rawBatchResponse, opportunities) {
+    const analyses = [];
+
+    // Split response by stock symbols
+    opportunities.forEach(opp => {
+        try {
+            const symbolRegex = new RegExp(`===\\s*${opp.symbol}\\s*===([\\s\\S]*?)(?===\\s*[A-Z.-]+\\s*===|$)`, 'i');
+            const symbolMatch = rawBatchResponse.match(symbolRegex);
+
+            if (symbolMatch) {
+                const symbolResponse = symbolMatch[1].trim();
+                const analysis = parseAnalysisResponse(symbolResponse, opp);
+                analyses.push({
+                    opportunity: opp,
+                    analysis: analysis,
+                    timestamp: new Date().toISOString()
+                });
+            } else {
+                console.warn(`Could not find analysis for ${opp.symbol} in batch response`);
+            }
+        } catch (error) {
+            console.error(`Error parsing batch analysis for ${opp.symbol}:`, error);
+        }
+    });
+
+    return analyses;
 }
 
 /**

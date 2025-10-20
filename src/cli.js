@@ -78,7 +78,7 @@ async function testFinnhub() {
         throw new Error('FINNHUB_API_KEY environment variable is not set');
     }
     
-    const opportunities = await getEarningsOpportunities(finnhubApiKey, alphaVantageApiKey);
+    const opportunities = await getEarningsOpportunities(finnhubApiKey);
     console.log(`✅ Found ${opportunities.length} earnings opportunities`);
     
     opportunities.forEach(opp => {
@@ -270,7 +270,7 @@ async function testPipeline() {
     }
     
     console.log('1. Fetching earnings opportunities...');
-    const opportunities = await getEarningsOpportunities(finnhubApiKey, alphaVantageApiKey);
+    const opportunities = await getEarningsOpportunities(finnhubApiKey);
     console.log(`   Found ${opportunities.length} opportunities`);
     
     console.log('2. Getting market context...');
@@ -312,7 +312,7 @@ async function testFullRun() {
         };
 
         console.log('1. 📊 Scanning earnings opportunities...');
-        const opportunities = await getEarningsOpportunities(FINNHUB_API_KEY, ALPHA_VANTAGE_API_KEY);
+    const opportunities = await getEarningsOpportunities(FINNHUB_API_KEY);
         console.log(`   ✅ Found ${opportunities.length} qualified opportunities`);
         addStep('Scan earnings opportunities', 'success', `${opportunities.length} opportunities analyzed`);
         summary.metrics.totalOpportunities = opportunities.length;

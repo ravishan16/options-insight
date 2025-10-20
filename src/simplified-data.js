@@ -92,8 +92,8 @@ class SimplifiedDataProvider {
    */
   constructor(config = {}) {
     this.finnhubApiKey = config.finnhubApiKey;
-    // Reduced delay for Yahoo Finance's liberal rate limits
-    this.requestDelay = config.requestDelay || 500; // 500ms is sufficient for Yahoo
+    // Increased delay to prevent API rate limiting and reduce subrequest pressure
+    this.requestDelay = config.requestDelay || 800; // 800ms to be more conservative
     this.yahooEndpoint = "https://query1.finance.yahoo.com/v8/finance/chart/";
     this.userAgent =
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
@@ -419,22 +419,16 @@ class SimplifiedDataProvider {
     let fiftyTwoWeekLow = null;
 
     try {
-      // FIX: Pass the API key from the instance property
-      const range = await get52WeekRange(symbol, this.finnhubApiKey);
-      fiftyTwoWeekHigh = range.high;
-      fiftyTwoWeekLow = range.low;
-      // Print the values right after assignment
-      console.log(
-        `📈 52-week range for ${symbol}: High = ${fiftyTwoWeekHigh}, Low = ${fiftyTwoWeekLow}`
-      );
-    } catch (err) {
-      console.warn(`⚠️ Could not fetch 52-week range for ${symbol}:`, err);
-    }
-
-    try {
-      // Get current quote
+      // Get current quote (includes 52-week range from Yahoo)
       const quote = await this.getQuote(symbol);
       console.log(`✅ Quote from ${quote.source}: $${quote.price}`);
+
+      // Use 52-week data from Yahoo Finance quote (no additional API calls needed)
+      if (quote.fiftyTwoWeekHigh && quote.fiftyTwoWeekLow) {
+        fiftyTwoWeekHigh = quote.fiftyTwoWeekHigh;
+        fiftyTwoWeekLow = quote.fiftyTwoWeekLow;
+        console.log(`📈 52-week range for ${symbol}: High = ${fiftyTwoWeekHigh}, Low = ${fiftyTwoWeekLow}`);
+      }
 
       // Get historical data
       const historicalData = await this.getHistoricalData(symbol);
@@ -830,6 +824,7 @@ class SimplifiedDataProvider {
 
       try {
         results[symbol] = await this.getVolatilityAnalysis(symbol);
+        console.log(`✅ Analysis complete for ${symbol} (Score: ${results[symbol]?.volatilityScore || 'N/A'}/100)`);
       } catch (error) {
         console.error(`❌ Analysis failed for ${symbol}:`, error);
         results[symbol] = null;
@@ -846,6 +841,7 @@ class SimplifiedDataProvider {
     console.log(`✅ Bulk analysis complete`);
     return results;
   }
+
 }
 
 export default SimplifiedDataProvider;

@@ -109,15 +109,15 @@ const EmailTemplate = ({
                 </td>
                 <td style="padding: 4px 8px 4px 0; font-weight: 500;">Vol Status:</td>
                 <td style="padding: 4px 0; color: ${vol.impliedVolatility && vol.historicalVolatility && vol.impliedVolatility > vol.historicalVolatility ? palette.primaryDark : palette.muted}; font-weight: 500;">
-                ${
-                  // Issue #22: Clarify Volatility Regime - Explicitly state IV vs HV
-                  vol.impliedVolatility && vol.historicalVolatility
-                    ? vol.impliedVolatility > vol.historicalVolatility
-                      ? "High (IV > HV)"
-                      : "Normal (IV <= HV)"
-                    : "N/A"
-                }
-              </td>
+                  ${
+                    // Issue #22: Clarify Volatility Regime - Explicitly state IV vs HV
+                    vol.impliedVolatility && vol.historicalVolatility
+                      ? vol.impliedVolatility > vol.historicalVolatility
+                        ? "High (IV > HV)"
+                        : "Normal (IV <= HV)"
+                      : "N/A"
+                  }
+                </td>
               </tr>
               <tr>
                 <td style="padding: 4px 8px 4px 0; font-weight: 500;">RSI:</td>
