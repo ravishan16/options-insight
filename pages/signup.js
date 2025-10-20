@@ -1,7 +1,10 @@
-const DEFAULT_API_ENDPOINT = 'https://options-insight.ravishankar-sivasubramaniam.workers.dev/subscribe';
+const DEFAULT_API_ENDPOINT = null;
 
 function resolveApiEndpoint() {
   const explicit = window.OPTIONS_INSIGHT_API_URL || document.body.dataset.apiEndpoint;
+  if (!explicit) {
+    console.error('API endpoint not configured. Set OPTIONS_INSIGHT_API_URL or data-api-endpoint attribute.');
+  }
   return explicit || DEFAULT_API_ENDPOINT;
 }
 

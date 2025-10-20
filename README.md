@@ -176,15 +176,36 @@ npm install
 Create `.env` for CLI and Make targets:
 
 ```bash
+# Required API Keys
 FINNHUB_API_KEY=your_finnhub_key
 GEMINI_API_KEY=your_gemini_key
 RESEND_API_KEY=your_resend_key
 AUDIENCE_ID=your_resend_audience_id
+
+# Email Configuration (Required)
+NEWSLETTER_FROM_EMAIL=newsletter@yourdomain.com
+SUMMARY_EMAIL_FROM=alerts@yourdomain.com
+SUMMARY_EMAIL_RECIPIENT=admin@yourdomain.com
+
+# Optional Email Configuration
+UNSUBSCRIBE_EMAIL=unsubscribe@yourdomain.com
+
+# API Security
 TRIGGER_AUTH_SECRET=your_shared_secret
-SUMMARY_EMAIL_RECIPIENT=********@gmail.com
-# SIGNUP_ALLOWED_ORIGINS=https://options-insight.pages.dev,https://yourdomain.com
-# SUMMARY_EMAIL_FROM=alerts@ravishankars.com
+
+# CORS Configuration (Optional - defaults to *.pages.dev and localhost)
+SIGNUP_ALLOWED_ORIGINS=https://yourdomain.com,https://*.pages.dev
+SUBSCRIBE_ALLOWED_ORIGINS=https://yourdomain.com,https://*.pages.dev
+ALLOWED_ORIGINS=https://yourdomain.com,https://*.pages.dev
 ```
+
+> **Email Configuration Notes**
+>
+> - `NEWSLETTER_FROM_EMAIL`: Sender address for daily newsletters (required)
+> - `SUMMARY_EMAIL_FROM`: Sender address for pipeline run summaries (required)
+> - `SUMMARY_EMAIL_RECIPIENT`: Where to send pipeline status reports (required for summaries)
+> - `UNSUBSCRIBE_EMAIL`: Optional unsubscribe address for List-Unsubscribe header
+> - All email addresses must be verified in your Resend account
 
 > **Rate-limit performance**
 >
@@ -272,6 +293,35 @@ The system operates within Cloudflare Worker limits to ensure reliable productio
 
    ```sh
    make trigger-production
+   ```
+
+### Configuring the Signup Page
+
+The signup page (`pages/index.html`) needs to be configured with your Cloudflare Worker endpoint:
+
+1. **Edit `pages/index.html`** and set the `data-api-endpoint` attribute:
+
+   ```html
+   <body data-api-endpoint="https://your-worker.workers.dev/subscribe" class="layout">
+   ```
+
+2. **Or set via JavaScript** before the page loads:
+
+   ```javascript
+   window.OPTIONS_INSIGHT_API_URL = 'https://your-worker.workers.dev/subscribe';
+   ```
+
+3. **Deploy to Cloudflare Pages:**
+
+   ```sh
+   make deploy-pages
+   ```
+
+4. **Configure CORS** in your Worker secrets to allow your Pages domain:
+
+   ```sh
+   wrangler secret put ALLOWED_ORIGINS
+   # Enter: https://your-pages.pages.dev,https://yourdomain.com
    ```
 
 ### Production Endpoints

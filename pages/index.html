@@ -16,11 +16,15 @@
       rel="stylesheet"
     />
     <script>
+      // Set API endpoint via this variable or use the data-api-endpoint attribute on body element
+      // Example: window.OPTIONS_INSIGHT_API_URL = 'https://your-worker.workers.dev/subscribe';
       window.OPTIONS_INSIGHT_API_URL = window.OPTIONS_INSIGHT_API_URL || null;
     </script>
     <script src="signup.js" type="module" defer></script>
   </head>
-  <body data-api-endpoint="https://options-insight.ravishankar-sivasubramaniam.workers.dev/subscribe" class="layout">
+  <body data-api-endpoint="" class="layout">
+    <!-- Set data-api-endpoint attribute to your Cloudflare Worker /subscribe endpoint -->
+    <!-- Example: data-api-endpoint="https://your-worker.workers.dev/subscribe" -->
     <main class="hero">
       <div class="container hero-content">
         <span class="badge">Daily Quant Research • Weekdays at 8:00&nbsp;UTC</span>

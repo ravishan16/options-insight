@@ -396,7 +396,7 @@ async function testFullRun() {
         summary.success = summary.errors.length === 0;
 
         // Optionally send run summary email (requires recipients)
-    const from = process.env.SUMMARY_EMAIL_FROM || 'alerts@ravishankars.com';
+    const from = process.env.SUMMARY_EMAIL_FROM;
     const rawRecipients = process.env.RECIPIENTS || process.env.SUMMARY_EMAIL_RECIPIENT;
         const recipients = rawRecipients
             ? Array.from(new Map(
@@ -408,8 +408,8 @@ async function testFullRun() {
               ).values())
             : [];
 
-        if (!RESEND_API_KEY || recipients.length === 0) {
-            console.log('ℹ️  Skipping run summary email (set RESEND_API_KEY and RECIPIENTS or SUMMARY_EMAIL_RECIPIENT)');
+        if (!RESEND_API_KEY || recipients.length === 0 || !from) {
+            console.log('ℹ️  Skipping run summary email (set RESEND_API_KEY, SUMMARY_EMAIL_FROM, and RECIPIENTS or SUMMARY_EMAIL_RECIPIENT)');
         } else {
             // Small pause to avoid back-to-back API calls after broadcast send
             await new Promise(res => setTimeout(res, 500));
@@ -499,11 +499,15 @@ async function previewEmail() {
 async function testSummaryEmail() {
     console.log('📧 Testing run summary email...');
     const apiKey = process.env.RESEND_API_KEY;
-    const from = process.env.SUMMARY_EMAIL_FROM || 'alerts@ravishankars.com';
+    const from = process.env.SUMMARY_EMAIL_FROM;
     const rawRecipients = process.env.RECIPIENTS || process.env.SUMMARY_EMAIL_RECIPIENT;
 
     if (!apiKey) {
         throw new Error('RESEND_API_KEY environment variable is not set');
+    }
+
+    if (!from) {
+        throw new Error('SUMMARY_EMAIL_FROM environment variable is not set');
     }
 
     if (!rawRecipients) {
