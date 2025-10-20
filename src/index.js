@@ -75,18 +75,21 @@ export default {
 
         // API status endpoint - checks if required environment variables are present
         if (url.pathname === '/status') {
-            const { FINNHUB_API_KEY, ALPHA_VANTAGE_API_KEY, RESEND_API_KEY, GEMINI_API_KEY } = env;
+            const { FINNHUB_API_KEY, ALPHA_VANTAGE_API_KEY, RESEND_API_KEY, GEMINI_API_KEY, AUDIENCE_ID } = env;
             
             const status = {
                 service: 'Options Insight',
                 timestamp: new Date().toISOString(),
                 environment: {
                     FINNHUB_API_KEY: !!FINNHUB_API_KEY,
-                    ALPHA_VANTAGE_API_KEY: !!ALPHA_VANTAGE_API_KEY, 
                     RESEND_API_KEY: !!RESEND_API_KEY,
-                    GEMINI_API_KEY: !!GEMINI_API_KEY
+                    GEMINI_API_KEY: !!GEMINI_API_KEY,
+                    AUDIENCE_ID: !!AUDIENCE_ID,
+                    // Alpha Vantage is optional (legacy fallback)
+                    ALPHA_VANTAGE_API_KEY: !!ALPHA_VANTAGE_API_KEY
                 },
-                ready: !!(FINNHUB_API_KEY && ALPHA_VANTAGE_API_KEY && RESEND_API_KEY && GEMINI_API_KEY)
+                // Ready when primary keys are present; Alpha Vantage is optional
+                ready: !!(FINNHUB_API_KEY && RESEND_API_KEY && GEMINI_API_KEY && AUDIENCE_ID)
             };
 
             return new Response(JSON.stringify(status, null, 2), {
@@ -281,7 +284,7 @@ async function processAndSendDigest(env) {
         }
         completeStep('success', 'All required secrets present');
 
-        beginStep('Initialize Alpha Vantage');
+    beginStep('Initialize market data');
         if (!ALPHA_VANTAGE_API_KEY && !FINNHUB_API_KEY) {
             console.warn("⚠️  No Alpha Vantage or Finnhub API keys provided, using fallback data");
             completeStep('warning', 'No market data API keys provided; using fallback data');
@@ -304,7 +307,7 @@ async function processAndSendDigest(env) {
 
         beginStep('Scan earnings opportunities');
         console.log("📊 Step 1: Scanning earnings opportunities...");
-        const opportunities = await getEarningsOpportunities(FINNHUB_API_KEY, ALPHA_VANTAGE_API_KEY);
+    const opportunities = await getEarningsOpportunities(FINNHUB_API_KEY);
         summary.metrics.totalOpportunities = opportunities.length;
         completeStep('success', `${opportunities.length} opportunities analyzed`);
 

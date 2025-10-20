@@ -75,7 +75,8 @@ push-secrets:
 	@test -f .env || (echo "❌ .env file not found" && exit 1)
 	@export $$(cat .env | grep -v '^#' | xargs) && \
 	if [ -z "$$FINNHUB_API_KEY" ]; then echo "❌ FINNHUB_API_KEY not set in .env"; exit 1; fi && \
-	if [ -z "$$ALPHA_VANTAGE_API_KEY" ]; then echo "❌ ALPHA_VANTAGE_API_KEY not set in .env"; exit 1; fi && \
+	# Alpha Vantage is optional; skip validation if not present
+	if [ -z "$$ALPHA_VANTAGE_API_KEY" ]; then echo "ℹ️  ALPHA_VANTAGE_API_KEY not set; skipping (optional)"; fi && \
 	if [ -z "$$GEMINI_API_KEY" ]; then echo "❌ GEMINI_API_KEY not set in .env"; exit 1; fi && \
 	if [ -z "$$RESEND_API_KEY" ]; then echo "❌ RESEND_API_KEY not set in .env"; exit 1; fi && \
 	if [ -z "$$AUDIENCE_ID" ]; then echo "❌ AUDIENCE_ID not set in .env"; exit 1; fi && \
@@ -83,8 +84,12 @@ push-secrets:
 	echo "✅ Environment variables validated" && \
 	echo "🔄 Pushing FINNHUB_API_KEY..." && \
 	echo "$$FINNHUB_API_KEY" | wrangler secret put FINNHUB_API_KEY && \
-	echo "🔄 Pushing ALPHA_VANTAGE_API_KEY..." && \
-	echo "$$ALPHA_VANTAGE_API_KEY" | wrangler secret put ALPHA_VANTAGE_API_KEY && \
+	if [ -n "$$ALPHA_VANTAGE_API_KEY" ]; then \
+		echo "🔄 Pushing ALPHA_VANTAGE_API_KEY..." && \
+		echo "$$ALPHA_VANTAGE_API_KEY" | wrangler secret put ALPHA_VANTAGE_API_KEY; \
+	else \
+		echo "ℹ️  Skipping ALPHA_VANTAGE_API_KEY (optional)"; \
+	fi && \
 	echo "🔄 Pushing GEMINI_API_KEY..." && \
 	echo "$$GEMINI_API_KEY" | wrangler secret put GEMINI_API_KEY && \
 	echo "🔄 Pushing RESEND_API_KEY..." && \

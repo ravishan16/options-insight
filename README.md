@@ -51,10 +51,11 @@ Options Insight automates the manual options workflow into a deterministic pipel
 ## How the System Works (Optimized Pipeline)
 
 1. **Market Radar:** Finnhub earnings calendar filtered to curated universe (`src/config.js`) and 1–45 day lookahead.
-2. **Yahoo Finance Primary:** High-performance data provider, sub-200ms quotes, historical data, smart caching.
-3. **Quant Analysis:** `simplified-data.js` calculates volatility, RSI, price ranges, and scores opportunities.
-4. **AI Briefing:** Google Gemini generates strategy recommendations, validated in `gemini.js`.
-5. **Professional Delivery:** React Email template, Resend broadcast, unsubscribe handling.
+2. **Data-Driven Prescreening:** Revenue-based scoring prioritizes high-liquidity opportunities (18→8 symbols, 55% reduction).
+3. **Yahoo Finance Primary:** High-performance data provider, sub-200ms quotes, historical data, smart caching.
+4. **Quant Analysis:** `simplified-data.js` calculates volatility, RSI, price ranges, and scores opportunities.
+5. **Batch AI Analysis:** Single Google Gemini API call processes all opportunities (5→1 calls, 80% time reduction).
+6. **Professional Delivery:** React Email template, Resend broadcast, unsubscribe handling.
 
 ---
 
@@ -150,10 +151,11 @@ Traders sign up via Cloudflare Pages, POST to `/subscribe`, join the Resend audi
 ## Daily Research Workflow (Optimized Pipeline)
 
 1. **Scan Universe:** `getEarningsOpportunities` pulls 45 days, filters tickers, scores timing/liquidity.
-2. **Yahoo Finance Volatility:** `SimplifiedDataProvider` fetches quotes and volatility, cached.
-3. **Quality Gate:** `volatilityScore` + `validateAnalysis` thresholds filter low-info names.
-4. **Narrative Generation:** Gemini receives snapshot/context, returns structured brief.
-5. **Rendering & Send:** `EmailTemplate` renders, `sendEmailDigest` sends via Resend.
+2. **Data-Driven Prescreening:** `calculatePrescreenScore` uses revenue estimates and timing to rank opportunities.
+3. **Yahoo Finance Volatility:** `SimplifiedDataProvider` fetches quotes and volatility for top-ranked symbols, cached.
+4. **Quality Gate:** `volatilityScore` + `validateAnalysis` thresholds filter low-info names.
+5. **Batch AI Analysis:** Single Gemini API call processes all qualified opportunities simultaneously.
+6. **Rendering & Send:** `EmailTemplate` renders, `sendEmailDigest` sends via Resend.
 
 Emoji-prefixed logs at each stage; see `make test-full-run` for transcript.
 
@@ -222,6 +224,27 @@ open email-preview.html
 | Public signup form | `pages/` | Static site posts to `/subscribe` |
 
 Emoji logs announce each stage; Yahoo Finance successes show response times, Finnhub fallbacks are marked.
+
+---
+
+## Cloudflare Worker Constraints
+
+The system operates within Cloudflare Worker limits to ensure reliable production performance:
+
+| Constraint | Free Tier | Paid Tier | Impact on System |
+|------------|-----------|-----------|------------------|
+| **CPU Time** | 10ms per request | 5 minutes per request | Newsletter pipeline requires paid tier for AI processing |
+| **Subrequests** | 50 per request | 1,000 per request | Data-driven prescreening keeps requests under limits |
+| **Duration** | No hard limit | No hard limit | Pipeline completes in ~30 seconds |
+| **Memory** | 128 MB | 128 MB | Sufficient for current operations |
+| **Daily Requests** | 100,000 | No limit | Cron schedule uses minimal quota |
+
+**Key Design Decisions:**
+- **Prescreening Logic:** Revenue-based filtering reduces API calls to stay within subrequest limits
+- **Batch Processing:** Single Gemini API call minimizes both subrequests and CPU time
+- **Smart Caching:** 5-minute TTL reduces redundant calls during development/testing
+
+**Reference:** [Cloudflare Workers Platform Limits](https://developers.cloudflare.com/workers/platform/limits/)
 
 ---
 
