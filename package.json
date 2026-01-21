@@ -16,7 +16,7 @@
     "@vitest/coverage-v8": "^3.2.4",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.2.4",
-    "wrangler": "^4.40.2"
+    "wrangler": "^4.59.1"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
